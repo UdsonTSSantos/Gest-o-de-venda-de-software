@@ -17,6 +17,7 @@ export interface Client {
   active: boolean
   address: string
   softwareLicenses: ClientSoftwareLicense[]
+  monthlyFees: MonthlyFee[]
   createdAt: string
 }
 
@@ -27,15 +28,25 @@ export interface Software {
   priceUnitary: number
   priceNetwork: number
   priceCloud: number
+  updatePrice: number
+  cloudUpdatePrice: number
 }
 
 export interface ClientSoftwareLicense {
   id: string
   softwareId: string
   softwareName: string
-  type: 'Unitary' | 'Network' | 'Cloud'
+  type: 'Unitary' | 'Network' | 'Cloud' | 'Web'
   acquisitionDate: string
   price: number
+}
+
+export interface MonthlyFee {
+  id: string
+  description: string
+  value: number
+  dueDay: number
+  active: boolean
 }
 
 export interface Service {
@@ -67,6 +78,14 @@ export interface Occurrence {
   closedBy?: string
 }
 
+export type PaymentMethod =
+  | 'Nubank Fisica'
+  | 'Nubank Jurídica'
+  | 'Caixa'
+  | 'Mercado Pago'
+  | 'Dinheiro'
+  | 'Crédito'
+
 export interface FinancialEntry {
   id: string
   type: 'receita' | 'despesa'
@@ -74,8 +93,13 @@ export interface FinancialEntry {
   category: string
   value: number
   date: string
-  clientId?: string // Optional, linked to client
+  dueDate?: string
+  clientId?: string
   clientName?: string
+  supplierId?: string
+  supplierName?: string
+  paymentMethod?: PaymentMethod
+  observation?: string
 }
 
 export interface CompanyInfo {
@@ -85,4 +109,17 @@ export interface CompanyInfo {
   phone: string
   email: string
   logoUrl?: string
+}
+
+export interface ExpenseCategory {
+  id: string
+  name: string
+}
+
+export interface Supplier {
+  id: string
+  name: string
+  contact: string
+  phone: string
+  email: string
 }

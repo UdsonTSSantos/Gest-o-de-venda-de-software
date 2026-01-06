@@ -17,7 +17,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog'
 import { useForm } from 'react-hook-form'
@@ -39,7 +38,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus } from 'lucide-react'
+import { Plus, Edit, Trash } from 'lucide-react'
+import { User } from '@/types'
 
 const userSchema = z.object({
   name: z.string().min(2),
@@ -51,24 +51,61 @@ const userSchema = z.object({
 })
 
 export default function UsersPage() {
-  const { users, addUser, toggleUserStatus } = useMainStore()
+  const { users, addUser, updateUser, deleteUser, toggleUserStatus } =
+    useMainStore()
   const { toast } = useToast()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState<User | null>(null)
 
   const form = useForm<z.infer<typeof userSchema>>({
     resolver: zodResolver(userSchema),
     defaultValues: { name: '', email: '', role: 'user' },
   })
 
+  const openNew = () => {
+    setEditingUser(null)
+    form.reset({ name: '', email: '', role: 'user' })
+    setIsDialogOpen(true)
+  }
+
+  const openEdit = (user: User) => {
+    setEditingUser(user)
+    form.reset({ name: user.name, email: user.email, role: user.role })
+    setIsDialogOpen(true)
+  }
+
   const onSubmit = (data: z.infer<typeof userSchema>) => {
-    addUser({
-      ...data,
-      active: true,
-      avatar: `https://img.usecurling.com/ppl/thumbnail?gender=male&seed=${Math.floor(Math.random() * 100)}`,
-    })
-    toast({ title: 'Usuário criado' })
+    if (editingUser) {
+      updateUser(editingUser.id, data)
+      toast({ title: 'Usuário atualizado' })
+    } else {
+      addUser({
+        ...data,
+        active: true,
+        avatar: `https://img.usecurling.com/ppl/thumbnail?gender=male&seed=${Math.floor(Math.random() * 100)}`,
+      })
+      toast({ title: 'Usuário criado' })
+    }
     setIsDialogOpen(false)
-    form.reset()
+  }
+
+  const handleDelete = (id: string) => {
+    const userToDelete = users.find((u) => u.id === id)
+    const adminCount = users.filter((u) => u.role === 'admin').length
+
+    if (userToDelete?.role === 'admin' && adminCount <= 1) {
+      toast({
+        title: 'Erro',
+        description: 'Não é possível excluir o único administrador.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (confirm('Tem certeza que deseja excluir este usuário?')) {
+      deleteUser(id)
+      toast({ title: 'Usuário excluído' })
+    }
   }
 
   return (
@@ -77,77 +114,87 @@ export default function UsersPage() {
         <h1 className="text-3xl font-bold text-slate-900">
           Usuários do Sistema
         </h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-indigo-600">
-              <Plus className="mr-2 h-4 w-4" /> Novo Usuário
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Adicionar Usuário</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-4"
-              >
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email (@ast7.com.br)</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Função</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="admin">Administrador</SelectItem>
-                          <SelectItem value="user">Usuário Comum</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <Button type="submit">Criar Usuário</Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={openNew} className="bg-indigo-600">
+          <Plus className="mr-2 h-4 w-4" /> Novo Usuário
+        </Button>
       </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingUser ? 'Editar Usuário' : 'Adicionar Usuário'}
+            </DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email (@ast7.com.br)</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Função</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="admin">Administrador</SelectItem>
+                        <SelectItem value="user">Usuário Comum</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+              <DialogFooter className="flex justify-between items-center">
+                {editingUser && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => {
+                      setIsDialogOpen(false)
+                      handleDelete(editingUser.id)
+                    }}
+                  >
+                    Excluir
+                  </Button>
+                )}
+                <Button type="submit">Salvar</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardContent className="pt-6">
@@ -185,13 +232,22 @@ export default function UsersPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleUserStatus(u.id)}
-                    >
-                      {u.active ? 'Desativar' : 'Ativar'}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleUserStatus(u.id)}
+                      >
+                        {u.active ? 'Desativar' : 'Ativar'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEdit(u)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

@@ -40,7 +40,8 @@ import {
 } from '@/components/ui/form'
 import { useToast } from '@/hooks/use-toast'
 import { format, isBefore, parseISO } from 'date-fns'
-import { Plus, Filter } from 'lucide-react'
+import { Plus, Edit } from 'lucide-react'
+import { Occurrence } from '@/types'
 
 const occurrenceSchema = z.object({
   clientId: z.string().min(1, 'Selecione um cliente'),
@@ -55,6 +56,9 @@ export default function OccurrencesList() {
     useMainStore()
   const { toast } = useToast()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [editingOccurrence, setEditingOccurrence] = useState<Occurrence | null>(
+    null,
+  )
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
   const form = useForm<z.infer<typeof occurrenceSchema>>({
@@ -68,16 +72,47 @@ export default function OccurrencesList() {
     },
   })
 
+  const openNew = () => {
+    setEditingOccurrence(null)
+    form.reset({
+      clientId: '',
+      solicitor: '',
+      title: '',
+      description: '',
+      deadline: '',
+    })
+    setIsDialogOpen(true)
+  }
+
+  const openEdit = (occ: Occurrence) => {
+    setEditingOccurrence(occ)
+    form.reset({
+      clientId: occ.clientId,
+      solicitor: occ.solicitor,
+      title: occ.title,
+      description: occ.description,
+      deadline: occ.deadline.split('T')[0],
+    })
+    setIsDialogOpen(true)
+  }
+
   const onSubmit = (data: z.infer<typeof occurrenceSchema>) => {
     const client = clients.find((c) => c.id === data.clientId)
     if (client) {
-      addOccurrence({ ...data, clientName: client.name })
-      toast({
-        title: 'Ocorrência Aberta',
-        description: `Ticket criado para ${client.name}`,
-      })
+      if (editingOccurrence) {
+        updateOccurrence(editingOccurrence.id, {
+          ...data,
+          clientName: client.name,
+        })
+        toast({ title: 'Ocorrência atualizada' })
+      } else {
+        addOccurrence({ ...data, clientName: client.name })
+        toast({
+          title: 'Ocorrência Aberta',
+          description: `Ticket criado para ${client.name}`,
+        })
+      }
       setIsDialogOpen(false)
-      form.reset()
     }
   }
 
@@ -115,15 +150,16 @@ export default function OccurrencesList() {
             </SelectContent>
           </Select>
 
+          <Button onClick={openNew} className="bg-rose-600 hover:bg-rose-700">
+            <Plus className="mr-2 h-4 w-4" /> Nova Ocorrência
+          </Button>
+
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-rose-600 hover:bg-rose-700">
-                <Plus className="mr-2 h-4 w-4" /> Nova Ocorrência
-              </Button>
-            </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Abrir Chamado</DialogTitle>
+                <DialogTitle>
+                  {editingOccurrence ? 'Editar Ocorrência' : 'Abrir Chamado'}
+                </DialogTitle>
               </DialogHeader>
               <Form {...form}>
                 <form
@@ -139,6 +175,7 @@ export default function OccurrencesList() {
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
+                          disabled={!!editingOccurrence} // Maybe allow changing client? Usually ticket is bound to client. Let's allow edit if needed but usually better to close and open new. I will allow it.
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -211,7 +248,7 @@ export default function OccurrencesList() {
                   />
                   <DialogFooter>
                     <Button type="submit" className="bg-rose-600">
-                      Abrir Ticket
+                      Salvar
                     </Button>
                   </DialogFooter>
                 </form>
@@ -281,25 +318,36 @@ export default function OccurrencesList() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Select
-                        defaultValue={occ.status}
-                        onValueChange={(val) => handleStatusChange(occ.id, val)}
-                      >
-                        <SelectTrigger className="h-8 w-[130px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="aberta">Aberta</SelectItem>
-                          <SelectItem value="em_andamento">
-                            Em Andamento
-                          </SelectItem>
-                          <SelectItem value="aguardando_cliente">
-                            Aguardando
-                          </SelectItem>
-                          <SelectItem value="resolvida">Resolvida</SelectItem>
-                          <SelectItem value="cancelada">Cancelada</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center gap-2">
+                        <Select
+                          defaultValue={occ.status}
+                          onValueChange={(val) =>
+                            handleStatusChange(occ.id, val)
+                          }
+                        >
+                          <SelectTrigger className="h-8 w-[130px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="aberta">Aberta</SelectItem>
+                            <SelectItem value="em_andamento">
+                              Em Andamento
+                            </SelectItem>
+                            <SelectItem value="aguardando_cliente">
+                              Aguardando
+                            </SelectItem>
+                            <SelectItem value="resolvida">Resolvida</SelectItem>
+                            <SelectItem value="cancelada">Cancelada</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEdit(occ)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )

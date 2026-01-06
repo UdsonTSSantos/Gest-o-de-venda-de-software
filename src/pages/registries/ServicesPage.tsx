@@ -16,7 +16,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog'
 import { useForm } from 'react-hook-form'
@@ -30,7 +29,8 @@ import {
   FormLabel,
 } from '@/components/ui/form'
 import { useToast } from '@/hooks/use-toast'
-import { Plus } from 'lucide-react'
+import { Plus, Edit } from 'lucide-react'
+import { Service } from '@/types'
 
 const serviceSchema = z.object({
   name: z.string().min(2),
@@ -40,9 +40,10 @@ const serviceSchema = z.object({
 })
 
 export default function ServicesPage() {
-  const { services, addService } = useMainStore()
+  const { services, addService, updateService } = useMainStore()
   const { toast } = useToast()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [editingService, setEditingService] = useState<Service | null>(null)
 
   const form = useForm<z.infer<typeof serviceSchema>>({
     resolver: zodResolver(serviceSchema),
@@ -54,90 +55,114 @@ export default function ServicesPage() {
     },
   })
 
+  const openNew = () => {
+    setEditingService(null)
+    form.reset({
+      name: '',
+      description: '',
+      priceClient: 0,
+      priceNonClient: 0,
+    })
+    setIsDialogOpen(true)
+  }
+
+  const openEdit = (service: Service) => {
+    setEditingService(service)
+    form.reset({
+      name: service.name,
+      description: service.description,
+      priceClient: service.priceClient,
+      priceNonClient: service.priceNonClient,
+    })
+    setIsDialogOpen(true)
+  }
+
   const onSubmit = (data: z.infer<typeof serviceSchema>) => {
-    addService(data)
-    toast({ title: 'Serviço adicionado' })
+    if (editingService) {
+      updateService(editingService.id, data)
+      toast({ title: 'Serviço atualizado' })
+    } else {
+      addService(data)
+      toast({ title: 'Serviço adicionado' })
+    }
     setIsDialogOpen(false)
-    form.reset()
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-slate-900">Serviços</h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-indigo-600">
-              <Plus className="mr-2 h-4 w-4" /> Novo Serviço
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Cadastrar Serviço</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-4"
-              >
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Descrição</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="priceClient"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Preço Cliente</FormLabel>
-                        <FormControl>
-                          <Input type="number" {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="priceNonClient"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Preço Não-Cliente</FormLabel>
-                        <FormControl>
-                          <Input type="number" {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <DialogFooter>
-                  <Button type="submit">Salvar</Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={openNew} className="bg-indigo-600">
+          <Plus className="mr-2 h-4 w-4" /> Novo Serviço
+        </Button>
       </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingService ? 'Editar Serviço' : 'Cadastrar Serviço'}
+            </DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrição</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="priceClient"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preço Cliente</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="priceNonClient"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preço Não-Cliente</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="submit">Salvar</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardContent className="pt-6">
@@ -148,6 +173,7 @@ export default function ServicesPage() {
                 <TableHead>Descrição</TableHead>
                 <TableHead>Preço Cliente</TableHead>
                 <TableHead>Preço Não-Cliente</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -157,6 +183,15 @@ export default function ServicesPage() {
                   <TableCell>{s.description}</TableCell>
                   <TableCell>R$ {s.priceClient}</TableCell>
                   <TableCell>R$ {s.priceNonClient}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openEdit(s)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

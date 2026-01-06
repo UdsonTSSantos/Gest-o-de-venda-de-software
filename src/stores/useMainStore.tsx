@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState } from 'react'
 import {
   Client,
   CompanyInfo,
@@ -8,8 +8,10 @@ import {
   Software,
   User,
   ClientSoftwareLicense,
+  ExpenseCategory,
+  Supplier,
+  MonthlyFee,
 } from '@/types'
-import { format } from 'date-fns'
 
 interface MainState {
   currentUser: User | null
@@ -20,19 +22,36 @@ interface MainState {
   softwares: Software[]
   services: Service[]
   companyInfo: CompanyInfo
+  expenseCategories: ExpenseCategory[]
+  suppliers: Supplier[]
 }
 
 interface MainActions {
   login: (email: string) => void
   logout: () => void
   addClient: (
-    client: Omit<Client, 'id' | 'createdAt' | 'softwareLicenses'>,
+    client: Omit<
+      Client,
+      'id' | 'createdAt' | 'softwareLicenses' | 'monthlyFees'
+    >,
   ) => void
   updateClient: (id: string, data: Partial<Client>) => void
   addSoftwareToClient: (
     clientId: string,
     license: Omit<ClientSoftwareLicense, 'id'>,
   ) => void
+  updateClientSoftwareLicense: (
+    clientId: string,
+    licenseId: string,
+    data: Partial<ClientSoftwareLicense>,
+  ) => void
+  addMonthlyFeeToClient: (clientId: string, fee: Omit<MonthlyFee, 'id'>) => void
+  updateMonthlyFee: (
+    clientId: string,
+    feeId: string,
+    data: Partial<MonthlyFee>,
+  ) => void
+  deleteMonthlyFee: (clientId: string, feeId: string) => void
   addOccurrence: (
     occurrence: Omit<Occurrence, 'id' | 'openingDate' | 'status'>,
   ) => void
@@ -44,7 +63,15 @@ interface MainActions {
   updateService: (id: string, data: Partial<Service>) => void
   updateCompanyInfo: (info: CompanyInfo) => void
   addUser: (user: Omit<User, 'id'>) => void
+  updateUser: (id: string, data: Partial<User>) => void
+  deleteUser: (id: string) => void
   toggleUserStatus: (id: string) => void
+  addExpenseCategory: (category: Omit<ExpenseCategory, 'id'>) => void
+  updateExpenseCategory: (id: string, data: Partial<ExpenseCategory>) => void
+  deleteExpenseCategory: (id: string) => void
+  addSupplier: (supplier: Omit<Supplier, 'id'>) => void
+  updateSupplier: (id: string, data: Partial<Supplier>) => void
+  deleteSupplier: (id: string) => void
 }
 
 const MainContext = createContext<(MainState & MainActions) | null>(null)
@@ -77,6 +104,8 @@ const MOCK_SOFTWARES: Software[] = [
     priceUnitary: 1500,
     priceNetwork: 3000,
     priceCloud: 5000,
+    updatePrice: 300,
+    cloudUpdatePrice: 500,
   },
   {
     id: '2',
@@ -85,6 +114,8 @@ const MOCK_SOFTWARES: Software[] = [
     priceUnitary: 800,
     priceNetwork: 1600,
     priceCloud: 2500,
+    updatePrice: 150,
+    cloudUpdatePrice: 250,
   },
 ]
 
@@ -125,6 +156,15 @@ const MOCK_CLIENTS: Client[] = [
         price: 3000,
       },
     ],
+    monthlyFees: [
+      {
+        id: 'mf1',
+        description: 'Manutenção Mensal ERP',
+        value: 300,
+        dueDay: 10,
+        active: true,
+      },
+    ],
     createdAt: '2023-01-10',
   },
   {
@@ -137,6 +177,7 @@ const MOCK_CLIENTS: Client[] = [
     active: true,
     address: 'Rua das Flores, 50 - RJ',
     softwareLicenses: [],
+    monthlyFees: [],
     createdAt: '2023-06-20',
   },
 ]
@@ -151,20 +192,7 @@ const MOCK_OCCURRENCES: Occurrence[] = [
     description: 'Sistema trava ao tentar transmitir nota fiscal.',
     status: 'aberta',
     openingDate: new Date().toISOString(),
-    deadline: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-  },
-  {
-    id: '102',
-    clientId: '2',
-    clientName: 'Mercado Feliz',
-    solicitor: 'Ana Souza',
-    title: 'Dúvida no Relatório',
-    description: 'Como exportar o relatório de vendas?',
-    status: 'resolvida',
-    openingDate: '2023-11-01T10:00:00',
-    deadline: '2023-11-02T10:00:00',
-    closingDate: '2023-11-01T14:30:00',
-    closedBy: '1',
+    deadline: new Date(Date.now() - 86400000).toISOString(),
   },
 ]
 
@@ -196,6 +224,30 @@ const MOCK_FINANCIALS: FinancialEntry[] = [
     category: 'Infraestrutura',
     value: 200,
     date: '2023-11-10',
+    paymentMethod: 'Nubank Jurídica',
+  },
+]
+
+const MOCK_EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  { id: '1', name: 'Infraestrutura' },
+  { id: '2', name: 'Pessoal' },
+  { id: '3', name: 'Material de Escritório' },
+]
+
+const MOCK_SUPPLIERS: Supplier[] = [
+  {
+    id: '1',
+    name: 'AWS Services',
+    contact: 'Suporte',
+    phone: '',
+    email: 'support@aws.com',
+  },
+  {
+    id: '2',
+    name: 'Papelaria Central',
+    contact: 'João',
+    phone: '(11) 3333-2222',
+    email: 'joao@papelaria.com',
   },
 ]
 
@@ -216,6 +268,10 @@ export const MainProvider = ({ children }: { children: React.ReactNode }) => {
     email: 'contato@ast7.com.br',
     logoUrl: 'https://img.usecurling.com/i?q=AST7&shape=outline&color=blue',
   })
+  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>(
+    MOCK_EXPENSE_CATEGORIES,
+  )
+  const [suppliers, setSuppliers] = useState<Supplier[]>(MOCK_SUPPLIERS)
 
   const login = (email: string) => {
     const user = users.find((u) => u.email === email && u.active)
@@ -225,13 +281,14 @@ export const MainProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = () => setCurrentUser(null)
 
   const addClient = (
-    data: Omit<Client, 'id' | 'createdAt' | 'softwareLicenses'>,
+    data: Omit<Client, 'id' | 'createdAt' | 'softwareLicenses' | 'monthlyFees'>,
   ) => {
     const newClient: Client = {
       ...data,
       id: Math.random().toString(36).substr(2, 9),
       createdAt: new Date().toISOString(),
       softwareLicenses: [],
+      monthlyFees: [],
     }
     setClients((prev) => [newClient, ...prev])
   }
@@ -248,8 +305,6 @@ export const MainProvider = ({ children }: { children: React.ReactNode }) => {
       ...license,
       id: Math.random().toString(36).substr(2, 9),
     }
-
-    // Add license to client
     setClients((prev) =>
       prev.map((c) =>
         c.id === clientId
@@ -257,8 +312,6 @@ export const MainProvider = ({ children }: { children: React.ReactNode }) => {
           : c,
       ),
     )
-
-    // Automatically create financial entry
     const client = clients.find((c) => c.id === clientId)
     const entry: FinancialEntry = {
       id: Math.random().toString(36).substr(2, 9),
@@ -266,11 +319,79 @@ export const MainProvider = ({ children }: { children: React.ReactNode }) => {
       description: `Aquisição de Licença: ${license.softwareName} (${license.type})`,
       category: 'Venda Software',
       value: license.price,
-      date: new Date().toISOString(), // Today
+      date: new Date().toISOString(),
       clientId: clientId,
       clientName: client?.name,
     }
     setFinancials((prev) => [entry, ...prev])
+  }
+
+  const updateClientSoftwareLicense = (
+    clientId: string,
+    licenseId: string,
+    data: Partial<ClientSoftwareLicense>,
+  ) => {
+    setClients((prev) =>
+      prev.map((c) => {
+        if (c.id === clientId) {
+          return {
+            ...c,
+            softwareLicenses: c.softwareLicenses.map((l) =>
+              l.id === licenseId ? { ...l, ...data } : l,
+            ),
+          }
+        }
+        return c
+      }),
+    )
+  }
+
+  const addMonthlyFeeToClient = (
+    clientId: string,
+    fee: Omit<MonthlyFee, 'id'>,
+  ) => {
+    const newFee = { ...fee, id: Math.random().toString(36).substr(2, 9) }
+    setClients((prev) =>
+      prev.map((c) =>
+        c.id === clientId
+          ? { ...c, monthlyFees: [...c.monthlyFees, newFee] }
+          : c,
+      ),
+    )
+  }
+
+  const updateMonthlyFee = (
+    clientId: string,
+    feeId: string,
+    data: Partial<MonthlyFee>,
+  ) => {
+    setClients((prev) =>
+      prev.map((c) => {
+        if (c.id === clientId) {
+          return {
+            ...c,
+            monthlyFees: c.monthlyFees.map((f) =>
+              f.id === feeId ? { ...f, ...data } : f,
+            ),
+          }
+        }
+        return c
+      }),
+    )
+  }
+
+  const deleteMonthlyFee = (clientId: string, feeId: string) => {
+    setClients((prev) =>
+      prev.map((c) => {
+        if (c.id === clientId) {
+          return {
+            ...c,
+            monthlyFees: c.monthlyFees.filter((f) => f.id !== feeId),
+          }
+        }
+        return c
+      }),
+    )
   }
 
   const addOccurrence = (
@@ -290,7 +411,6 @@ export const MainProvider = ({ children }: { children: React.ReactNode }) => {
       prev.map((o) => {
         if (o.id === id) {
           const updated = { ...o, ...data }
-          // If status changing to resolved, capture closing date and user
           if (data.status === 'resolvida' && o.status !== 'resolvida') {
             updated.closingDate = new Date().toISOString()
             updated.closedBy = currentUser?.id
@@ -340,20 +460,57 @@ export const MainProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const addUser = (data: Omit<User, 'id'>) => {
-    if (!data.email.endsWith('@ast7.com.br')) {
-      alert('Email deve ser @ast7.com.br') // Simple alert, handled better in UI
-      return
-    }
     setUsers((prev) => [
       ...prev,
       { ...data, id: Math.random().toString(36).substr(2, 9) },
     ])
   }
 
+  const updateUser = (id: string, data: Partial<User>) => {
+    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...data } : u)))
+  }
+
+  const deleteUser = (id: string) => {
+    setUsers((prev) => prev.filter((u) => u.id !== id))
+  }
+
   const toggleUserStatus = (id: string) => {
     setUsers((prev) =>
       prev.map((u) => (u.id === id ? { ...u, active: !u.active } : u)),
     )
+  }
+
+  const addExpenseCategory = (category: Omit<ExpenseCategory, 'id'>) => {
+    setExpenseCategories((prev) => [
+      ...prev,
+      { ...category, id: Math.random().toString(36).substr(2, 9) },
+    ])
+  }
+  const updateExpenseCategory = (
+    id: string,
+    data: Partial<ExpenseCategory>,
+  ) => {
+    setExpenseCategories((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...data } : c)),
+    )
+  }
+  const deleteExpenseCategory = (id: string) => {
+    setExpenseCategories((prev) => prev.filter((c) => c.id !== id))
+  }
+
+  const addSupplier = (supplier: Omit<Supplier, 'id'>) => {
+    setSuppliers((prev) => [
+      ...prev,
+      { ...supplier, id: Math.random().toString(36).substr(2, 9) },
+    ])
+  }
+  const updateSupplier = (id: string, data: Partial<Supplier>) => {
+    setSuppliers((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, ...data } : s)),
+    )
+  }
+  const deleteSupplier = (id: string) => {
+    setSuppliers((prev) => prev.filter((s) => s.id !== id))
   }
 
   return React.createElement(
@@ -368,11 +525,17 @@ export const MainProvider = ({ children }: { children: React.ReactNode }) => {
         softwares,
         services,
         companyInfo,
+        expenseCategories,
+        suppliers,
         login,
         logout,
         addClient,
         updateClient,
         addSoftwareToClient,
+        updateClientSoftwareLicense,
+        addMonthlyFeeToClient,
+        updateMonthlyFee,
+        deleteMonthlyFee,
         addOccurrence,
         updateOccurrence,
         addFinancialEntry,
@@ -382,7 +545,15 @@ export const MainProvider = ({ children }: { children: React.ReactNode }) => {
         updateService,
         updateCompanyInfo,
         addUser,
+        updateUser,
+        deleteUser,
         toggleUserStatus,
+        addExpenseCategory,
+        updateExpenseCategory,
+        deleteExpenseCategory,
+        addSupplier,
+        updateSupplier,
+        deleteSupplier,
       },
     },
     children,

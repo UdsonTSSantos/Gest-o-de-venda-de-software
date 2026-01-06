@@ -11,7 +11,6 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-  useSidebar,
 } from '@/components/ui/sidebar'
 import {
   Collapsible,
@@ -28,8 +27,9 @@ import {
   Building,
   Shield,
   ChevronRight,
-  User,
   LogOut,
+  Tag,
+  Truck,
 } from 'lucide-react'
 import useMainStore from '@/stores/useMainStore'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -152,6 +152,28 @@ export function AppSidebar() {
                         <Link to="/registries/services">
                           <Briefcase className="mr-2 h-4 w-4" />
                           <span>Serviços</span>
+                        </Link>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton
+                        asChild
+                        isActive={isActive('/registries/expense-categories')}
+                      >
+                        <Link to="/registries/expense-categories">
+                          <Tag className="mr-2 h-4 w-4" />
+                          <span>Categorias de Despesa</span>
+                        </Link>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton
+                        asChild
+                        isActive={isActive('/registries/suppliers')}
+                      >
+                        <Link to="/registries/suppliers">
+                          <Truck className="mr-2 h-4 w-4" />
+                          <span>Fornecedores</span>
                         </Link>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>

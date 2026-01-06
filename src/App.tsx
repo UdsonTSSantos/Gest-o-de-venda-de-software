@@ -14,6 +14,8 @@ import FinancialList from './pages/financial/FinancialList'
 import SoftwaresPage from './pages/registries/SoftwaresPage'
 import ServicesPage from './pages/registries/ServicesPage'
 import CompanyPage from './pages/registries/CompanyPage'
+import ExpenseCategoriesPage from './pages/registries/ExpenseCategoriesPage'
+import SuppliersPage from './pages/registries/SuppliersPage'
 import UsersPage from './pages/users/UsersPage'
 
 const App = () => (
@@ -37,6 +39,11 @@ const App = () => (
 
             <Route path="/registries/softwares" element={<SoftwaresPage />} />
             <Route path="/registries/services" element={<ServicesPage />} />
+            <Route
+              path="/registries/expense-categories"
+              element={<ExpenseCategoriesPage />}
+            />
+            <Route path="/registries/suppliers" element={<SuppliersPage />} />
             <Route path="/registries/company" element={<CompanyPage />} />
 
             <Route path="/users" element={<UsersPage />} />
