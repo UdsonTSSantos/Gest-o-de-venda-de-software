@@ -12,7 +12,7 @@ import {
   Supplier,
   MonthlyFee,
 } from '@/types'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/client'
 
 interface MainState {
   currentUser: User | null
@@ -136,7 +136,7 @@ export const MainProvider = ({ children }: { children: React.ReactNode }) => {
         supabase.from('clients').select('*'),
         supabase.from('client_software_licenses').select('*'),
         supabase.from('client_monthly_fees').select('*'),
-        supabase.from('users').select('*'),
+        supabase.from('profiles').select('*'), // Changed from users to profiles
         supabase.from('occurrences').select('*'),
         supabase.from('financial_entries').select('*'),
         supabase.from('softwares').select('*'),
@@ -682,27 +682,23 @@ export const MainProvider = ({ children }: { children: React.ReactNode }) => {
 
   const addUser = async (data: Omit<User, 'id'>) => {
     // Note: Creating user in Supabase auth usually requires backend logic or service key to skip email confirmation if wanted,
-    // or just standard signUp. For now, assuming just inserting into 'users' table which is a public profile table linked to auth.
+    // or just standard signUp. For now, assuming just inserting into 'profiles' table which is a public profile table linked to auth.
     // Real auth user creation happens via Login page signUp or Admin function if allowed.
-    // For this scope, we update the `users` table. The Auth part is handled by `supabase.auth.signUp`.
-    // Admin interface for creating users:
-    // We can't create Auth User from client side without logging out current user.
-    // So this function might just insert into the 'users' table, assuming Auth user is created separately or by trigger.
-    // However, to satisfy "User Administration: Admin-only interface to manage team members", usually we need a backend function.
-    // I'll stick to inserting into `users` table for metadata. The actual auth user creation is out of scope for client-only unless we logout.
-    const { error } = await supabase.from('users').insert(data)
+    // For this scope, we update the `profiles` table. The Auth part is handled by `supabase.auth.signUp`.
+    // Since we can't create Auth User from client side without logging out current user (or using Edge Function), we just manage metadata here.
+    const { error } = await supabase.from('profiles').insert(data)
     if (error) throw error
     await fetchData()
   }
 
   const updateUser = async (id: string, data: Partial<User>) => {
-    const { error } = await supabase.from('users').update(data).eq('id', id)
+    const { error } = await supabase.from('profiles').update(data).eq('id', id)
     if (error) throw error
     await fetchData()
   }
 
   const deleteUser = async (id: string) => {
-    const { error } = await supabase.from('users').delete().eq('id', id)
+    const { error } = await supabase.from('profiles').delete().eq('id', id)
     if (error) throw error
     await fetchData()
   }
@@ -711,7 +707,7 @@ export const MainProvider = ({ children }: { children: React.ReactNode }) => {
     const user = users.find((u) => u.id === id)
     if (user) {
       const { error } = await supabase
-        .from('users')
+        .from('profiles')
         .update({ active: !user.active })
         .eq('id', id)
       if (error) throw error

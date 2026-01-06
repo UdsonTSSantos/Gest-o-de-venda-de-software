@@ -4,7 +4,7 @@ export interface User {
   email: string
   role: 'admin' | 'user'
   active: boolean
-  avatar?: string // Keeping for type compatibility, but won't use for upload
+  avatar?: string // Keeping for type compatibility
 }
 
 export interface Client {

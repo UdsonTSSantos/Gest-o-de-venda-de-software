@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { format, subMonths, parseISO } from 'date-fns'
+import { format, subMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Link } from 'react-router-dom'
 import { Plus, Users, Ticket, DollarSign } from 'lucide-react'
@@ -32,30 +32,41 @@ export default function Index() {
   const { clients, financials, occurrences } = useMainStore()
   const [period, setPeriod] = useState<string>(format(new Date(), 'yyyy-MM'))
 
-  // KPIs
-  const totalRevenue = financials
-    .filter((f) => f.type === 'receita' && f.date.startsWith(period))
-    .reduce((acc, curr) => acc + curr.value, 0)
+  // Safe access to arrays
+  const safeClients = clients || []
+  const safeFinancials = financials || []
+  const safeOccurrences = occurrences || []
 
-  const newClients = clients.filter((c) =>
-    c.createdAt.startsWith(period),
+  // KPIs
+  const totalRevenue = safeFinancials
+    .filter((f) => f.type === 'receita' && f.date && f.date.startsWith(period))
+    .reduce((acc, curr) => acc + (curr.value || 0), 0)
+
+  const newClients = safeClients.filter(
+    (c) => c.createdAt && c.createdAt.startsWith(period),
   ).length
 
-  const openOccurrences = occurrences.filter(
+  const openOccurrences = safeOccurrences.filter(
     (o) => o.status === 'aberta' || o.status === 'em_andamento',
   ).length
 
   // Charts Data
   // 1. Sales by Software (Updated to ignore returned licenses)
   const salesBySoftwareData: Record<string, number> = {}
-  clients.forEach((c) => {
-    c.softwareLicenses.forEach((l) => {
-      // Only count if acquired in period and NOT returned
-      if (l.acquisitionDate.startsWith(period) && !l.returned) {
-        salesBySoftwareData[l.softwareName] =
-          (salesBySoftwareData[l.softwareName] || 0) + 1
-      }
-    })
+  safeClients.forEach((c) => {
+    if (c.softwareLicenses) {
+      c.softwareLicenses.forEach((l) => {
+        // Only count if acquired in period and NOT returned
+        if (
+          l.acquisitionDate &&
+          l.acquisitionDate.startsWith(period) &&
+          !l.returned
+        ) {
+          salesBySoftwareData[l.softwareName] =
+            (salesBySoftwareData[l.softwareName] || 0) + 1
+        }
+      })
+    }
   })
   const barChartData = Object.entries(salesBySoftwareData).map(
     ([name, value]) => ({ name, value }),
@@ -74,13 +85,17 @@ export default function Index() {
     const monthStr = format(d, 'yyyy-MM')
     const monthLabel = format(d, 'MMM', { locale: ptBR })
 
-    const revenue = financials
-      .filter((f) => f.type === 'receita' && f.date.startsWith(monthStr))
-      .reduce((acc, curr) => acc + curr.value, 0)
+    const revenue = safeFinancials
+      .filter(
+        (f) => f.type === 'receita' && f.date && f.date.startsWith(monthStr),
+      )
+      .reduce((acc, curr) => acc + (curr.value || 0), 0)
 
-    const expense = financials
-      .filter((f) => f.type === 'despesa' && f.date.startsWith(monthStr))
-      .reduce((acc, curr) => acc + curr.value, 0)
+    const expense = safeFinancials
+      .filter(
+        (f) => f.type === 'despesa' && f.date && f.date.startsWith(monthStr),
+      )
+      .reduce((acc, curr) => acc + (curr.value || 0), 0)
 
     lineChartData.push({
       month: monthLabel,
@@ -101,10 +116,11 @@ export default function Index() {
               <SelectValue placeholder="Selecione o período" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="2023-01">Janeiro 2023</SelectItem>
-              <SelectItem value="2023-06">Junho 2023</SelectItem>
-              <SelectItem value="2023-11">Novembro 2023</SelectItem>
-              <SelectItem value="2023-12">Dezembro 2023</SelectItem>
+              <SelectItem value="2024-01">Janeiro 2024</SelectItem>
+              <SelectItem value="2024-06">Junho 2024</SelectItem>
+              <SelectItem value="2025-01">Janeiro 2025</SelectItem>
+              <SelectItem value="2025-12">Dezembro 2025</SelectItem>
+              <SelectItem value="2026-01">Janeiro 2026</SelectItem>
               <SelectItem value={format(new Date(), 'yyyy-MM')}>
                 Mês Atual
               </SelectItem>
@@ -143,9 +159,7 @@ export default function Index() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{newClients}</div>
-            <p className="text-xs text-muted-foreground">
-              +20% em relação ao mês anterior
-            </p>
+            <p className="text-xs text-muted-foreground">Registrados no mês</p>
           </CardContent>
         </Card>
         <Card className="bg-white shadow-sm border-l-4 border-l-rose-500">
@@ -168,7 +182,7 @@ export default function Index() {
           <CardHeader>
             <CardTitle>Vendas por Software</CardTitle>
             <CardDescription>
-              Quantidade de licenças vendidas no período
+              Quantidade de licenças vendidas no período (Exclui devolvidas)
             </CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
