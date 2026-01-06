@@ -34,12 +34,7 @@ import { useToast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  ClientSoftwareLicense,
-  MonthlyFee,
-  Occurrence,
-  FinancialEntry,
-} from '@/types'
+import { ClientSoftwareLicense, MonthlyFee } from '@/types'
 
 export default function ClientDetail() {
   const { id } = useParams()
@@ -56,9 +51,7 @@ export default function ClientDetail() {
     updateMonthlyFee,
     deleteMonthlyFee,
     deleteOccurrence,
-    updateOccurrence,
     deleteFinancialEntry,
-    updateFinancialEntry,
   } = useMainStore()
   const { toast } = useToast()
 
@@ -106,13 +99,13 @@ export default function ClientDetail() {
     setIsSoftwareDialogOpen(true)
   }
 
-  const handleDeleteSoftware = (licenseId: string) => {
+  const handleDeleteSoftware = async (licenseId: string) => {
     if (
       confirm(
         'Tem certeza que deseja excluir esta licença? Isso também removerá o lançamento financeiro associado.',
       )
     ) {
-      deleteClientSoftwareLicense(client.id, licenseId)
+      await deleteClientSoftwareLicense(client.id, licenseId)
       toast({ title: 'Licença excluída' })
     }
   }
@@ -137,11 +130,11 @@ export default function ClientDetail() {
     }
   }
 
-  const handleSaveSoftware = () => {
+  const handleSaveSoftware = async () => {
     const soft = softwares.find((s) => s.id === selectedSoftware)
     if (soft) {
       if (editingLicense) {
-        updateClientSoftwareLicense(client.id, editingLicense.id, {
+        await updateClientSoftwareLicense(client.id, editingLicense.id, {
           softwareId: soft.id,
           softwareName: soft.name,
           type: selectedType,
@@ -150,7 +143,7 @@ export default function ClientDetail() {
         })
         toast({ title: 'Licença atualizada' })
       } else {
-        addSoftwareToClient(client.id, {
+        await addSoftwareToClient(client.id, {
           softwareId: soft.id,
           softwareName: soft.name,
           type: selectedType,
@@ -181,12 +174,12 @@ export default function ClientDetail() {
     setEditingFee(fee)
     setFeeDescription(fee.description)
     setFeeValue(fee.value)
-    setFeeDueDate(fee.dueDate)
+    setFeeDueDate(fee.dueDate.split('T')[0]) // Ensure yyyy-MM-dd
     setFeeActive(fee.active)
     setIsFeeDialogOpen(true)
   }
 
-  const handleSaveFee = () => {
+  const handleSaveFee = async () => {
     if (!feeDescription) {
       toast({
         title: 'Erro',
@@ -202,34 +195,34 @@ export default function ClientDetail() {
       active: feeActive,
     }
     if (editingFee) {
-      updateMonthlyFee(client.id, editingFee.id, data)
+      await updateMonthlyFee(client.id, editingFee.id, data)
       toast({ title: 'Mensalidade atualizada' })
     } else {
-      addMonthlyFeeToClient(client.id, data)
+      await addMonthlyFeeToClient(client.id, data)
       toast({ title: 'Mensalidade criada' })
     }
     setIsFeeDialogOpen(false)
   }
 
-  const handleDeleteFee = (feeId: string) => {
+  const handleDeleteFee = async (feeId: string) => {
     if (confirm('Excluir esta mensalidade?')) {
-      deleteMonthlyFee(client.id, feeId)
+      await deleteMonthlyFee(client.id, feeId)
       toast({ title: 'Mensalidade removida' })
     }
   }
 
   // --- Occurrences Logic ---
-  const handleDeleteOccurrence = (occId: string) => {
+  const handleDeleteOccurrence = async (occId: string) => {
     if (confirm('Excluir esta ocorrência?')) {
-      deleteOccurrence(occId)
+      await deleteOccurrence(occId)
       toast({ title: 'Ocorrência excluída' })
     }
   }
 
   // --- Financial Logic ---
-  const handleDeleteFinancial = (finId: string) => {
+  const handleDeleteFinancial = async (finId: string) => {
     if (confirm('Excluir este lançamento financeiro?')) {
-      deleteFinancialEntry(finId)
+      await deleteFinancialEntry(finId)
       toast({ title: 'Lançamento excluído' })
     }
   }
@@ -585,7 +578,9 @@ export default function ClientDetail() {
                 <TableBody>
                   {clientOccurrences.map((occ) => (
                     <TableRow key={occ.id}>
-                      <TableCell className="font-mono">#{occ.id}</TableCell>
+                      <TableCell className="font-mono">
+                        #{occ.id.substring(0, 8)}
+                      </TableCell>
                       <TableCell>{occ.title}</TableCell>
                       <TableCell>
                         <Badge
@@ -608,7 +603,6 @@ export default function ClientDetail() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          {/* Just reusing global edit logic via Link or custom dialog - using simple delete here */}
                           <Button
                             variant="ghost"
                             size="icon"

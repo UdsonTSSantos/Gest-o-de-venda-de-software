@@ -74,12 +74,12 @@ export default function UsersPage() {
     setIsDialogOpen(true)
   }
 
-  const onSubmit = (data: z.infer<typeof userSchema>) => {
+  const onSubmit = async (data: z.infer<typeof userSchema>) => {
     if (editingUser) {
-      updateUser(editingUser.id, data)
+      await updateUser(editingUser.id, data)
       toast({ title: 'Usuário atualizado' })
     } else {
-      addUser({
+      await addUser({
         ...data,
         active: true,
       })
@@ -88,7 +88,7 @@ export default function UsersPage() {
     setIsDialogOpen(false)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     const userToDelete = users.find((u) => u.id === id)
     const adminCount = users.filter((u) => u.role === 'admin').length
 
@@ -102,7 +102,7 @@ export default function UsersPage() {
     }
 
     if (confirm('Tem certeza que deseja excluir este usuário?')) {
-      deleteUser(id)
+      await deleteUser(id)
       toast({ title: 'Usuário excluído' })
     }
   }

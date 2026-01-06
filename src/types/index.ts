@@ -4,6 +4,7 @@ export interface User {
   email: string
   role: 'admin' | 'user'
   active: boolean
+  avatar?: string // Keeping for type compatibility, but won't use for upload
 }
 
 export interface Client {
@@ -29,21 +30,23 @@ export interface Software {
   priceCloud: number
   updatePrice: number
   cloudUpdatePrice: number
-  monthlyFee?: number
+  monthlyFee: number
 }
 
 export interface ClientSoftwareLicense {
   id: string
+  clientId?: string
   softwareId: string
   softwareName: string
   type: 'Unitary' | 'Network' | 'Cloud' | 'Web'
   acquisitionDate: string
   price: number
-  returned?: boolean
+  returned: boolean
 }
 
 export interface MonthlyFee {
   id: string
+  clientId?: string
   description: string
   value: number
   dueDate: string
@@ -105,6 +108,7 @@ export interface FinancialEntry {
 }
 
 export interface CompanyInfo {
+  id?: string
   name: string
   cnpj: string
   address: string

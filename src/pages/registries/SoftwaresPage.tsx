@@ -40,7 +40,7 @@ const softwareSchema = z.object({
   priceCloud: z.coerce.number().min(0),
   updatePrice: z.coerce.number().min(0),
   cloudUpdatePrice: z.coerce.number().min(0),
-  monthlyFee: z.coerce.number().min(0), // New field
+  monthlyFee: z.coerce.number().min(0),
 })
 
 export default function SoftwaresPage() {
@@ -93,12 +93,12 @@ export default function SoftwaresPage() {
     setIsDialogOpen(true)
   }
 
-  const onSubmit = (data: z.infer<typeof softwareSchema>) => {
+  const onSubmit = async (data: z.infer<typeof softwareSchema>) => {
     if (editingSoftware) {
-      updateSoftware(editingSoftware.id, data)
+      await updateSoftware(editingSoftware.id, data)
       toast({ title: 'Software atualizado' })
     } else {
-      addSoftware(data)
+      await addSoftware(data)
       toast({ title: 'Software adicionado' })
     }
     setIsDialogOpen(false)
@@ -242,6 +242,8 @@ export default function SoftwaresPage() {
                 <TableHead>Unitário</TableHead>
                 <TableHead>Rede</TableHead>
                 <TableHead>Cloud</TableHead>
+                <TableHead>Atualização</TableHead>
+                <TableHead>Att. Cloud</TableHead>
                 <TableHead>Mensalidade</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
@@ -254,6 +256,8 @@ export default function SoftwaresPage() {
                   <TableCell>R$ {s.priceUnitary}</TableCell>
                   <TableCell>R$ {s.priceNetwork}</TableCell>
                   <TableCell>R$ {s.priceCloud}</TableCell>
+                  <TableCell>R$ {s.updatePrice}</TableCell>
+                  <TableCell>R$ {s.cloudUpdatePrice}</TableCell>
                   <TableCell>R$ {s.monthlyFee || 0}</TableCell>
                   <TableCell>
                     <Button
