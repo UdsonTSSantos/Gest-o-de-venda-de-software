@@ -4,7 +4,6 @@ export interface User {
   email: string
   role: 'admin' | 'user'
   active: boolean
-  avatar?: string
 }
 
 export interface Client {
@@ -30,6 +29,7 @@ export interface Software {
   priceCloud: number
   updatePrice: number
   cloudUpdatePrice: number
+  monthlyFee?: number
 }
 
 export interface ClientSoftwareLicense {
@@ -39,13 +39,14 @@ export interface ClientSoftwareLicense {
   type: 'Unitary' | 'Network' | 'Cloud' | 'Web'
   acquisitionDate: string
   price: number
+  returned?: boolean
 }
 
 export interface MonthlyFee {
   id: string
   description: string
   value: number
-  dueDay: number
+  dueDate: string
   active: boolean
 }
 
@@ -100,6 +101,7 @@ export interface FinancialEntry {
   supplierName?: string
   paymentMethod?: PaymentMethod
   observation?: string
+  licenseId?: string
 }
 
 export interface CompanyInfo {

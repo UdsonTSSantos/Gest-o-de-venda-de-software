@@ -29,7 +29,7 @@ import {
   FormLabel,
 } from '@/components/ui/form'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, Edit } from 'lucide-react'
+import { Plus, Edit, Trash } from 'lucide-react'
 import { Service } from '@/types'
 
 const serviceSchema = z.object({
@@ -40,7 +40,7 @@ const serviceSchema = z.object({
 })
 
 export default function ServicesPage() {
-  const { services, addService, updateService } = useMainStore()
+  const { services, addService, updateService, deleteService } = useMainStore()
   const { toast } = useToast()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingService, setEditingService] = useState<Service | null>(null)
@@ -86,6 +86,13 @@ export default function ServicesPage() {
       toast({ title: 'Serviço adicionado' })
     }
     setIsDialogOpen(false)
+  }
+
+  const handleDelete = (id: string) => {
+    if (confirm('Tem certeza que deseja excluir este serviço?')) {
+      deleteService(id)
+      toast({ title: 'Serviço excluído' })
+    }
   }
 
   return (
@@ -173,7 +180,7 @@ export default function ServicesPage() {
                 <TableHead>Descrição</TableHead>
                 <TableHead>Preço Cliente</TableHead>
                 <TableHead>Preço Não-Cliente</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
+                <TableHead className="w-[100px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -184,13 +191,22 @@ export default function ServicesPage() {
                   <TableCell>R$ {s.priceClient}</TableCell>
                   <TableCell>R$ {s.priceNonClient}</TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openEdit(s)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEdit(s)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(s.id)}
+                      >
+                        <Trash className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

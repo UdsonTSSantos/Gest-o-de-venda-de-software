@@ -5,13 +5,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Plus, Package, Edit, Trash, Calendar } from 'lucide-react'
+import { ArrowLeft, Plus, Package, Edit, Trash } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog'
 import {
@@ -34,7 +33,13 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
 import { Switch } from '@/components/ui/switch'
-import { ClientSoftwareLicense, MonthlyFee } from '@/types'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  ClientSoftwareLicense,
+  MonthlyFee,
+  Occurrence,
+  FinancialEntry,
+} from '@/types'
 
 export default function ClientDetail() {
   const { id } = useParams()
@@ -46,9 +51,14 @@ export default function ClientDetail() {
     addSoftwareToClient,
     updateClient,
     updateClientSoftwareLicense,
+    deleteClientSoftwareLicense,
     addMonthlyFeeToClient,
     updateMonthlyFee,
     deleteMonthlyFee,
+    deleteOccurrence,
+    updateOccurrence,
+    deleteFinancialEntry,
+    updateFinancialEntry,
   } = useMainStore()
   const { toast } = useToast()
 
@@ -65,13 +75,14 @@ export default function ClientDetail() {
     'Unitary' | 'Network' | 'Cloud' | 'Web'
   >('Unitary')
   const [price, setPrice] = useState(0)
+  const [isReturned, setIsReturned] = useState(false)
 
   // Monthly Fee Dialog State
   const [isFeeDialogOpen, setIsFeeDialogOpen] = useState(false)
   const [editingFee, setEditingFee] = useState<MonthlyFee | null>(null)
   const [feeDescription, setFeeDescription] = useState('')
   const [feeValue, setFeeValue] = useState(0)
-  const [feeDueDay, setFeeDueDay] = useState(10)
+  const [feeDueDate, setFeeDueDate] = useState('')
   const [feeActive, setFeeActive] = useState(true)
 
   if (!client) return <div className="p-8">Cliente não encontrado</div>
@@ -82,6 +93,7 @@ export default function ClientDetail() {
     setSelectedSoftware('')
     setSelectedType('Unitary')
     setPrice(0)
+    setIsReturned(false)
     setIsSoftwareDialogOpen(true)
   }
 
@@ -90,7 +102,19 @@ export default function ClientDetail() {
     setSelectedSoftware(license.softwareId)
     setSelectedType(license.type)
     setPrice(license.price)
+    setIsReturned(license.returned || false)
     setIsSoftwareDialogOpen(true)
+  }
+
+  const handleDeleteSoftware = (licenseId: string) => {
+    if (
+      confirm(
+        'Tem certeza que deseja excluir esta licença? Isso também removerá o lançamento financeiro associado.',
+      )
+    ) {
+      deleteClientSoftwareLicense(client.id, licenseId)
+      toast({ title: 'Licença excluída' })
+    }
   }
 
   const handleSoftwareSelect = (val: string) => {
@@ -110,7 +134,6 @@ export default function ClientDetail() {
       if (val === 'Unitary') setPrice(soft.priceUnitary)
       else if (val === 'Network') setPrice(soft.priceNetwork)
       else if (val === 'Cloud') setPrice(soft.priceCloud)
-      // Web might not have a preset price, keep as is
     }
   }
 
@@ -123,6 +146,7 @@ export default function ClientDetail() {
           softwareName: soft.name,
           type: selectedType,
           price: price,
+          returned: isReturned,
         })
         toast({ title: 'Licença atualizada' })
       } else {
@@ -132,6 +156,7 @@ export default function ClientDetail() {
           type: selectedType,
           acquisitionDate: new Date().toISOString(),
           price: price,
+          returned: isReturned,
         })
         toast({
           title: 'Sucesso',
@@ -147,7 +172,7 @@ export default function ClientDetail() {
     setEditingFee(null)
     setFeeDescription('')
     setFeeValue(0)
-    setFeeDueDay(10)
+    setFeeDueDate(format(new Date(), 'yyyy-MM-dd'))
     setFeeActive(true)
     setIsFeeDialogOpen(true)
   }
@@ -156,16 +181,24 @@ export default function ClientDetail() {
     setEditingFee(fee)
     setFeeDescription(fee.description)
     setFeeValue(fee.value)
-    setFeeDueDay(fee.dueDay)
+    setFeeDueDate(fee.dueDate)
     setFeeActive(fee.active)
     setIsFeeDialogOpen(true)
   }
 
   const handleSaveFee = () => {
+    if (!feeDescription) {
+      toast({
+        title: 'Erro',
+        description: 'Selecione o tipo de mensalidade',
+        variant: 'destructive',
+      })
+      return
+    }
     const data = {
       description: feeDescription,
       value: feeValue,
-      dueDay: feeDueDay,
+      dueDate: feeDueDate,
       active: feeActive,
     }
     if (editingFee) {
@@ -182,6 +215,22 @@ export default function ClientDetail() {
     if (confirm('Excluir esta mensalidade?')) {
       deleteMonthlyFee(client.id, feeId)
       toast({ title: 'Mensalidade removida' })
+    }
+  }
+
+  // --- Occurrences Logic ---
+  const handleDeleteOccurrence = (occId: string) => {
+    if (confirm('Excluir esta ocorrência?')) {
+      deleteOccurrence(occId)
+      toast({ title: 'Ocorrência excluída' })
+    }
+  }
+
+  // --- Financial Logic ---
+  const handleDeleteFinancial = (finId: string) => {
+    if (confirm('Excluir este lançamento financeiro?')) {
+      deleteFinancialEntry(finId)
+      toast({ title: 'Lançamento excluído' })
     }
   }
 
@@ -237,7 +286,8 @@ export default function ClientDetail() {
                     <TableHead>Categoria</TableHead>
                     <TableHead>Data Aquisição</TableHead>
                     <TableHead>Valor</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[100px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -256,20 +306,41 @@ export default function ClientDetail() {
                       </TableCell>
                       <TableCell>R$ {license.price.toFixed(2)}</TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditSoftware(license)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        {license.returned ? (
+                          <Badge variant="destructive">Devolvido</Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                          >
+                            Ativo
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditSoftware(license)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteSoftware(license.id)}
+                          >
+                            <Trash className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
                   {client.softwareLicenses.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={5}
+                        colSpan={6}
                         className="text-center h-24 text-muted-foreground"
                       >
                         Nenhuma licença encontrada.
@@ -335,6 +406,20 @@ export default function ClientDetail() {
                     onChange={(e) => setPrice(Number(e.target.value))}
                   />
                 </div>
+                {editingLicense && (
+                  <div className="flex items-center space-x-2 pt-2">
+                    <Checkbox
+                      id="returned"
+                      checked={isReturned}
+                      onCheckedChange={(checked) =>
+                        setIsReturned(checked as boolean)
+                      }
+                    />
+                    <Label htmlFor="returned">
+                      Devolvido (Remover receita financeira)
+                    </Label>
+                  </div>
+                )}
               </div>
               <DialogFooter>
                 <Button onClick={handleSaveSoftware} className="bg-indigo-600">
@@ -358,7 +443,7 @@ export default function ClientDetail() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Descrição</TableHead>
-                    <TableHead>Dia Vencimento</TableHead>
+                    <TableHead>Vencimento</TableHead>
                     <TableHead>Valor</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-[100px]">Ações</TableHead>
@@ -368,7 +453,9 @@ export default function ClientDetail() {
                   {client.monthlyFees?.map((fee) => (
                     <TableRow key={fee.id}>
                       <TableCell>{fee.description}</TableCell>
-                      <TableCell>Dia {fee.dueDay}</TableCell>
+                      <TableCell>
+                        {format(new Date(fee.dueDate), 'dd/MM/yyyy')}
+                      </TableCell>
                       <TableCell>R$ {fee.value.toFixed(2)}</TableCell>
                       <TableCell>
                         <Badge variant={fee.active ? 'secondary' : 'outline'}>
@@ -419,12 +506,29 @@ export default function ClientDetail() {
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label>Descrição</Label>
-                  <Input
+                  <Label>Tipo de Mensalidade</Label>
+                  <Select
                     value={feeDescription}
-                    onChange={(e) => setFeeDescription(e.target.value)}
-                    placeholder="Ex: Manutenção Sistema"
-                  />
+                    onValueChange={setFeeDescription}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Mensalidade Cloud">
+                        Mensalidade Cloud
+                      </SelectItem>
+                      <SelectItem value="Mensalidade Web">
+                        Mensalidade Web
+                      </SelectItem>
+                      <SelectItem value="Mensalidade App">
+                        Mensalidade App
+                      </SelectItem>
+                      <SelectItem value="Mensalidade CRM">
+                        Mensalidade CRM
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
@@ -436,13 +540,11 @@ export default function ClientDetail() {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label>Dia Vencimento</Label>
+                    <Label>Data de Vencimento</Label>
                     <Input
-                      type="number"
-                      min="1"
-                      max="31"
-                      value={feeDueDay}
-                      onChange={(e) => setFeeDueDay(Number(e.target.value))}
+                      type="date"
+                      value={feeDueDate}
+                      onChange={(e) => setFeeDueDate(e.target.value)}
                     />
                   </div>
                 </div>
@@ -477,6 +579,7 @@ export default function ClientDetail() {
                     <TableHead>Título</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Abertura</TableHead>
+                    <TableHead className="w-[100px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -503,12 +606,24 @@ export default function ClientDetail() {
                       <TableCell>
                         {format(new Date(occ.openingDate), 'dd/MM/yyyy')}
                       </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          {/* Just reusing global edit logic via Link or custom dialog - using simple delete here */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteOccurrence(occ.id)}
+                          >
+                            <Trash className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {clientOccurrences.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={4}
+                        colSpan={5}
                         className="text-center h-24 text-muted-foreground"
                       >
                         Nenhuma ocorrência registrada.
@@ -534,6 +649,7 @@ export default function ClientDetail() {
                     <TableHead>Descrição</TableHead>
                     <TableHead>Categoria</TableHead>
                     <TableHead>Valor</TableHead>
+                    <TableHead className="w-[100px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -547,12 +663,23 @@ export default function ClientDetail() {
                       <TableCell className="text-emerald-600 font-semibold">
                         + R$ {fin.value.toFixed(2)}
                       </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteFinancial(fin.id)}
+                          >
+                            <Trash className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {clientFinancials.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={4}
+                        colSpan={5}
                         className="text-center h-24 text-muted-foreground"
                       >
                         Nenhum registro financeiro.

@@ -39,10 +39,18 @@ import {
 } from '@/components/ui/form'
 import { useToast } from '@/hooks/use-toast'
 import { format, isAfter, parseISO } from 'date-fns'
-import { Plus, TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
+import {
+  Plus,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Edit,
+  Trash,
+} from 'lucide-react'
+import { FinancialEntry } from '@/types'
 
 const financialSchema = z.object({
-  type: z.literal('despesa'),
+  type: z.enum(['receita', 'despesa']),
   description: z.string().min(3, 'Descrição obrigatória'),
   category: z.string().min(1, 'Categoria obrigatória'),
   value: z.coerce.number().min(0.01, 'Valor inválido'),
@@ -53,7 +61,7 @@ const financialSchema = z.object({
       'Data não pode ser futura',
     ),
   dueDate: z.string().min(1, 'Data de vencimento obrigatória'),
-  supplierId: z.string().min(1, 'Fornecedor obrigatório'),
+  supplierId: z.string().optional(),
   paymentMethod: z.enum([
     'Nubank Fisica',
     'Nubank Jurídica',
@@ -66,11 +74,18 @@ const financialSchema = z.object({
 })
 
 export default function FinancialList() {
-  const { financials, expenseCategories, suppliers, addFinancialEntry } =
-    useMainStore()
+  const {
+    financials,
+    expenseCategories,
+    suppliers,
+    addFinancialEntry,
+    deleteFinancialEntry,
+    updateFinancialEntry,
+  } = useMainStore()
   const { toast } = useToast()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [filterType, setFilterType] = useState('all')
+  const [editingEntry, setEditingEntry] = useState<FinancialEntry | null>(null)
 
   const form = useForm<z.infer<typeof financialSchema>>({
     resolver: zodResolver(financialSchema),
@@ -87,22 +102,8 @@ export default function FinancialList() {
     },
   })
 
-  const onSubmit = (data: z.infer<typeof financialSchema>) => {
-    const supplier = suppliers.find((s) => s.id === data.supplierId)
-    const categoryName =
-      expenseCategories.find((c) => c.id === data.category)?.name ||
-      data.category
-
-    addFinancialEntry({
-      ...data,
-      category: categoryName,
-      supplierName: supplier?.name,
-    })
-    toast({
-      title: 'Despesa registrada',
-      description: `R$ ${data.value} em ${categoryName}`,
-    })
-    setIsDialogOpen(false)
+  const openNew = () => {
+    setEditingEntry(null)
     form.reset({
       type: 'despesa',
       description: '',
@@ -114,6 +115,57 @@ export default function FinancialList() {
       paymentMethod: 'Nubank Jurídica',
       observation: '',
     })
+    setIsDialogOpen(true)
+  }
+
+  const openEdit = (entry: FinancialEntry) => {
+    setEditingEntry(entry)
+    form.reset({
+      type: entry.type,
+      description: entry.description,
+      category: entry.category, // You might need to handle matching ID vs Name if categories are stored by name in old entries
+      value: entry.value,
+      date: entry.date.split('T')[0],
+      dueDate: entry.dueDate ? entry.dueDate.split('T')[0] : '',
+      supplierId: entry.supplierId || '',
+      paymentMethod: entry.paymentMethod || 'Nubank Jurídica',
+      observation: entry.observation || '',
+    })
+    setIsDialogOpen(true)
+  }
+
+  const handleDelete = (id: string) => {
+    if (confirm('Tem certeza que deseja excluir este registro financeiro?')) {
+      deleteFinancialEntry(id)
+      toast({ title: 'Registro excluído' })
+    }
+  }
+
+  const onSubmit = (data: z.infer<typeof financialSchema>) => {
+    const supplier = suppliers.find((s) => s.id === data.supplierId)
+    // If category is an ID, find name, else use string (for backward compatibility or free text)
+    const categoryObj = expenseCategories.find((c) => c.id === data.category)
+    const categoryName = categoryObj ? categoryObj.name : data.category
+
+    if (editingEntry) {
+      updateFinancialEntry(editingEntry.id, {
+        ...data,
+        category: categoryName,
+        supplierName: supplier?.name,
+      })
+      toast({ title: 'Registro atualizado' })
+    } else {
+      addFinancialEntry({
+        ...data,
+        category: categoryName,
+        supplierName: supplier?.name,
+      })
+      toast({
+        title: 'Registro adicionado',
+        description: `R$ ${data.value} em ${categoryName}`,
+      })
+    }
+    setIsDialogOpen(false)
   }
 
   const filteredFinancials = financials.filter(
@@ -133,20 +185,45 @@ export default function FinancialList() {
         <h1 className="text-3xl font-bold text-slate-900">Financeiro</h1>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-rose-600 hover:bg-rose-700">
-              <Plus className="mr-2 h-4 w-4" /> Nova Despesa
-            </Button>
-          </DialogTrigger>
+          <Button onClick={openNew} className="bg-rose-600 hover:bg-rose-700">
+            <Plus className="mr-2 h-4 w-4" /> Novo Registro
+          </Button>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Registrar Despesa</DialogTitle>
+              <DialogTitle>
+                {editingEntry ? 'Editar Registro' : 'Registrar Movimentação'}
+              </DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="space-y-4"
               >
+                <FormField
+                  control={form.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tipo</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="receita">Receita</SelectItem>
+                          <SelectItem value="despesa">Despesa</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -211,7 +288,7 @@ export default function FinancialList() {
                     name="category"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Categoria de Despesa</FormLabel>
+                        <FormLabel>Categoria</FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
@@ -227,6 +304,15 @@ export default function FinancialList() {
                                 {c.name}
                               </SelectItem>
                             ))}
+                            {/* Fallback for existing categories not in list */}
+                            {editingEntry &&
+                              !expenseCategories.some(
+                                (c) => c.name === editingEntry.category,
+                              ) && (
+                                <SelectItem value={editingEntry.category}>
+                                  {editingEntry.category}
+                                </SelectItem>
+                              )}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -238,7 +324,7 @@ export default function FinancialList() {
                     name="supplierId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Fornecedor</FormLabel>
+                        <FormLabel>Fornecedor (Opcional)</FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
@@ -313,7 +399,7 @@ export default function FinancialList() {
 
                 <DialogFooter>
                   <Button type="submit" className="bg-rose-600">
-                    Salvar Despesa
+                    Salvar
                   </Button>
                 </DialogFooter>
               </form>
@@ -376,6 +462,7 @@ export default function FinancialList() {
                 <TableHead>Entidade</TableHead>
                 <TableHead>Pgto</TableHead>
                 <TableHead>Valor</TableHead>
+                <TableHead className="w-[100px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -408,6 +495,24 @@ export default function FinancialList() {
                     }
                   >
                     R$ {f.value.toFixed(2)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEdit(f)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(f.id)}
+                      >
+                        <Trash className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

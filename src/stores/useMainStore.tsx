@@ -45,6 +45,7 @@ interface MainActions {
     licenseId: string,
     data: Partial<ClientSoftwareLicense>,
   ) => void
+  deleteClientSoftwareLicense: (clientId: string, licenseId: string) => void
   addMonthlyFeeToClient: (clientId: string, fee: Omit<MonthlyFee, 'id'>) => void
   updateMonthlyFee: (
     clientId: string,
@@ -56,11 +57,15 @@ interface MainActions {
     occurrence: Omit<Occurrence, 'id' | 'openingDate' | 'status'>,
   ) => void
   updateOccurrence: (id: string, data: Partial<Occurrence>) => void
+  deleteOccurrence: (id: string) => void
   addFinancialEntry: (entry: Omit<FinancialEntry, 'id'>) => void
+  updateFinancialEntry: (id: string, data: Partial<FinancialEntry>) => void
+  deleteFinancialEntry: (id: string) => void
   addSoftware: (software: Omit<Software, 'id'>) => void
   updateSoftware: (id: string, data: Partial<Software>) => void
   addService: (service: Omit<Service, 'id'>) => void
   updateService: (id: string, data: Partial<Service>) => void
+  deleteService: (id: string) => void
   updateCompanyInfo: (info: CompanyInfo) => void
   addUser: (user: Omit<User, 'id'>) => void
   updateUser: (id: string, data: Partial<User>) => void
@@ -84,7 +89,6 @@ const MOCK_USERS: User[] = [
     email: 'suporte@ast7.com.br',
     role: 'admin',
     active: true,
-    avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=1',
   },
   {
     id: '2',
@@ -92,7 +96,6 @@ const MOCK_USERS: User[] = [
     email: 'john@ast7.com.br',
     role: 'user',
     active: true,
-    avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=2',
   },
 ]
 
@@ -106,6 +109,7 @@ const MOCK_SOFTWARES: Software[] = [
     priceCloud: 5000,
     updatePrice: 300,
     cloudUpdatePrice: 500,
+    monthlyFee: 150,
   },
   {
     id: '2',
@@ -116,6 +120,7 @@ const MOCK_SOFTWARES: Software[] = [
     priceCloud: 2500,
     updatePrice: 150,
     cloudUpdatePrice: 250,
+    monthlyFee: 100,
   },
 ]
 
@@ -154,31 +159,19 @@ const MOCK_CLIENTS: Client[] = [
         type: 'Network',
         acquisitionDate: '2023-01-15',
         price: 3000,
+        returned: false,
       },
     ],
     monthlyFees: [
       {
         id: 'mf1',
-        description: 'Manutenção Mensal ERP',
+        description: 'Mensalidade Cloud',
         value: 300,
-        dueDay: 10,
+        dueDate: '2023-02-10',
         active: true,
       },
     ],
     createdAt: '2023-01-10',
-  },
-  {
-    id: '2',
-    name: 'Mercado Feliz',
-    cnpj: '98.765.432/0001-10',
-    contactName: 'Ana Souza',
-    email: 'ana@mercadofeliz.com.br',
-    whatsapp: '(21) 91234-5678',
-    active: true,
-    address: 'Rua das Flores, 50 - RJ',
-    softwareLicenses: [],
-    monthlyFees: [],
-    createdAt: '2023-06-20',
   },
 ]
 
@@ -206,32 +199,13 @@ const MOCK_FINANCIALS: FinancialEntry[] = [
     date: '2023-01-15',
     clientId: '1',
     clientName: 'Tech Solutions Ltda',
-  },
-  {
-    id: '2',
-    type: 'receita',
-    description: 'Mensalidade Suporte',
-    category: 'Mensalidade',
-    value: 500,
-    date: '2023-11-05',
-    clientId: '1',
-    clientName: 'Tech Solutions Ltda',
-  },
-  {
-    id: '3',
-    type: 'despesa',
-    description: 'Servidor AWS',
-    category: 'Infraestrutura',
-    value: 200,
-    date: '2023-11-10',
-    paymentMethod: 'Nubank Jurídica',
+    licenseId: 'l1',
   },
 ]
 
 const MOCK_EXPENSE_CATEGORIES: ExpenseCategory[] = [
   { id: '1', name: 'Infraestrutura' },
   { id: '2', name: 'Pessoal' },
-  { id: '3', name: 'Material de Escritório' },
 ]
 
 const MOCK_SUPPLIERS: Supplier[] = [
@@ -241,13 +215,6 @@ const MOCK_SUPPLIERS: Supplier[] = [
     contact: 'Suporte',
     phone: '',
     email: 'support@aws.com',
-  },
-  {
-    id: '2',
-    name: 'Papelaria Central',
-    contact: 'João',
-    phone: '(11) 3333-2222',
-    email: 'joao@papelaria.com',
   },
 ]
 
@@ -301,9 +268,11 @@ export const MainProvider = ({ children }: { children: React.ReactNode }) => {
     clientId: string,
     license: Omit<ClientSoftwareLicense, 'id'>,
   ) => {
+    const licenseId = Math.random().toString(36).substr(2, 9)
     const newLicense = {
       ...license,
-      id: Math.random().toString(36).substr(2, 9),
+      id: licenseId,
+      returned: false,
     }
     setClients((prev) =>
       prev.map((c) =>
@@ -322,6 +291,7 @@ export const MainProvider = ({ children }: { children: React.ReactNode }) => {
       date: new Date().toISOString(),
       clientId: clientId,
       clientName: client?.name,
+      licenseId: licenseId,
     }
     setFinancials((prev) => [entry, ...prev])
   }
@@ -344,6 +314,27 @@ export const MainProvider = ({ children }: { children: React.ReactNode }) => {
         return c
       }),
     )
+
+    if (data.returned === true) {
+      setFinancials((prev) => prev.filter((f) => f.licenseId !== licenseId))
+    }
+  }
+
+  const deleteClientSoftwareLicense = (clientId: string, licenseId: string) => {
+    setClients((prev) =>
+      prev.map((c) => {
+        if (c.id === clientId) {
+          return {
+            ...c,
+            softwareLicenses: c.softwareLicenses.filter(
+              (l) => l.id !== licenseId,
+            ),
+          }
+        }
+        return c
+      }),
+    )
+    setFinancials((prev) => prev.filter((f) => f.licenseId !== licenseId))
   }
 
   const addMonthlyFeeToClient = (
@@ -422,11 +413,25 @@ export const MainProvider = ({ children }: { children: React.ReactNode }) => {
     )
   }
 
+  const deleteOccurrence = (id: string) => {
+    setOccurrences((prev) => prev.filter((o) => o.id !== id))
+  }
+
   const addFinancialEntry = (entry: Omit<FinancialEntry, 'id'>) => {
     setFinancials((prev) => [
       { ...entry, id: Math.random().toString(36).substr(2, 9) },
       ...prev,
     ])
+  }
+
+  const updateFinancialEntry = (id: string, data: Partial<FinancialEntry>) => {
+    setFinancials((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, ...data } : f)),
+    )
+  }
+
+  const deleteFinancialEntry = (id: string) => {
+    setFinancials((prev) => prev.filter((f) => f.id !== id))
   }
 
   const addSoftware = (data: Omit<Software, 'id'>) => {
@@ -453,6 +458,10 @@ export const MainProvider = ({ children }: { children: React.ReactNode }) => {
     setServices((prev) =>
       prev.map((s) => (s.id === id ? { ...s, ...data } : s)),
     )
+  }
+
+  const deleteService = (id: string) => {
+    setServices((prev) => prev.filter((s) => s.id !== id))
   }
 
   const updateCompanyInfo = (info: CompanyInfo) => {
@@ -533,16 +542,21 @@ export const MainProvider = ({ children }: { children: React.ReactNode }) => {
         updateClient,
         addSoftwareToClient,
         updateClientSoftwareLicense,
+        deleteClientSoftwareLicense,
         addMonthlyFeeToClient,
         updateMonthlyFee,
         deleteMonthlyFee,
         addOccurrence,
         updateOccurrence,
+        deleteOccurrence,
         addFinancialEntry,
+        updateFinancialEntry,
+        deleteFinancialEntry,
         addSoftware,
         updateSoftware,
         addService,
         updateService,
+        deleteService,
         updateCompanyInfo,
         addUser,
         updateUser,

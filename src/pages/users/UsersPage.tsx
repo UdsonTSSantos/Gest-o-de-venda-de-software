@@ -38,7 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Edit, Trash } from 'lucide-react'
+import { Plus, Edit } from 'lucide-react'
 import { User } from '@/types'
 
 const userSchema = z.object({
@@ -82,7 +82,6 @@ export default function UsersPage() {
       addUser({
         ...data,
         active: true,
-        avatar: `https://img.usecurling.com/ppl/thumbnail?gender=male&seed=${Math.floor(Math.random() * 100)}`,
       })
       toast({ title: 'Usuário criado' })
     }
@@ -211,10 +210,7 @@ export default function UsersPage() {
             <TableBody>
               {users.map((u) => (
                 <TableRow key={u.id}>
-                  <TableCell className="font-medium flex items-center gap-2">
-                    <img src={u.avatar} className="w-8 h-8 rounded-full" />{' '}
-                    {u.name}
-                  </TableCell>
+                  <TableCell className="font-medium">{u.name}</TableCell>
                   <TableCell>{u.email}</TableCell>
                   <TableCell>
                     {u.role === 'admin' ? 'Administrador' : 'Usuário'}

@@ -7,18 +7,7 @@ import {
   CardDescription,
 } from '@/components/ui/card'
 import useMainStore from '@/stores/useMainStore'
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts'
+import { BarChart, Bar, LineChart, Line, XAxis, CartesianGrid } from 'recharts'
 import {
   ChartContainer,
   ChartTooltip,
@@ -34,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { format, subMonths, isSameMonth, parseISO } from 'date-fns'
+import { format, subMonths, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Link } from 'react-router-dom'
 import { Plus, Users, Ticket, DollarSign } from 'lucide-react'
@@ -44,8 +33,6 @@ export default function Index() {
   const [period, setPeriod] = useState<string>(format(new Date(), 'yyyy-MM'))
 
   // KPIs
-  const currentMonthDate = parseISO(`${period}-01`)
-
   const totalRevenue = financials
     .filter((f) => f.type === 'receita' && f.date.startsWith(period))
     .reduce((acc, curr) => acc + curr.value, 0)
@@ -59,12 +46,12 @@ export default function Index() {
   ).length
 
   // Charts Data
-  // 1. Sales by Software (Mock logic since we don't have direct sales table, inferring from clients software licenses acquired in period)
-  // Actually, let's scan all clients' licenses and check acquisitionDate
+  // 1. Sales by Software (Updated to ignore returned licenses)
   const salesBySoftwareData: Record<string, number> = {}
   clients.forEach((c) => {
     c.softwareLicenses.forEach((l) => {
-      if (l.acquisitionDate.startsWith(period)) {
+      // Only count if acquired in period and NOT returned
+      if (l.acquisitionDate.startsWith(period) && !l.returned) {
         salesBySoftwareData[l.softwareName] =
           (salesBySoftwareData[l.softwareName] || 0) + 1
       }
@@ -74,7 +61,6 @@ export default function Index() {
     ([name, value]) => ({ name, value }),
   )
   if (barChartData.length === 0) {
-    // Add dummy data for visual if empty
     barChartData.push(
       { name: 'AST7 ERP', value: 0 },
       { name: 'AST7 CRM', value: 0 },

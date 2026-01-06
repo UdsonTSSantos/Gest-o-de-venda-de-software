@@ -40,6 +40,7 @@ const softwareSchema = z.object({
   priceCloud: z.coerce.number().min(0),
   updatePrice: z.coerce.number().min(0),
   cloudUpdatePrice: z.coerce.number().min(0),
+  monthlyFee: z.coerce.number().min(0), // New field
 })
 
 export default function SoftwaresPage() {
@@ -58,6 +59,7 @@ export default function SoftwaresPage() {
       priceCloud: 0,
       updatePrice: 0,
       cloudUpdatePrice: 0,
+      monthlyFee: 0,
     },
   })
 
@@ -71,6 +73,7 @@ export default function SoftwaresPage() {
       priceCloud: 0,
       updatePrice: 0,
       cloudUpdatePrice: 0,
+      monthlyFee: 0,
     })
     setIsDialogOpen(true)
   }
@@ -85,6 +88,7 @@ export default function SoftwaresPage() {
       priceCloud: software.priceCloud,
       updatePrice: software.updatePrice,
       cloudUpdatePrice: software.cloudUpdatePrice,
+      monthlyFee: software.monthlyFee || 0,
     })
     setIsDialogOpen(true)
   }
@@ -182,7 +186,7 @@ export default function SoftwaresPage() {
                   )}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-2">
                 <FormField
                   control={form.control}
                   name="updatePrice"
@@ -201,6 +205,18 @@ export default function SoftwaresPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Atualização Cloud (R$)</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="monthlyFee"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mensalidade Base (R$)</FormLabel>
                       <FormControl>
                         <Input type="number" {...field} />
                       </FormControl>
@@ -226,7 +242,7 @@ export default function SoftwaresPage() {
                 <TableHead>Unitário</TableHead>
                 <TableHead>Rede</TableHead>
                 <TableHead>Cloud</TableHead>
-                <TableHead>Atualização</TableHead>
+                <TableHead>Mensalidade</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -238,7 +254,7 @@ export default function SoftwaresPage() {
                   <TableCell>R$ {s.priceUnitary}</TableCell>
                   <TableCell>R$ {s.priceNetwork}</TableCell>
                   <TableCell>R$ {s.priceCloud}</TableCell>
-                  <TableCell>R$ {s.updatePrice}</TableCell>
+                  <TableCell>R$ {s.monthlyFee || 0}</TableCell>
                   <TableCell>
                     <Button
                       variant="ghost"
